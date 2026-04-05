@@ -1,240 +1,61 @@
 #==========================================================================
-# Description: Package OpenWrt firmware image
-# Copyright (C) 2021 https://github.com/unifreq/openwrt_packit
-# Copyright (C) 2021 https://github.com/ophub/flippy-openwrt-actions
+# Description: 专用打包 N1(s905d) OpenWrt 固件
+# 固定：N1(s905d) + 内核6.12.y + IP 192.168.2.15
 #==========================================================================
 
-name: Package OpenWrt firmware image
+name: Package OpenWrt N1 Firmware
 
 on:
-  repository_dispatch:
   workflow_dispatch:
     inputs:
-      openwrt_soc:
-        description: "Select the target device board."
-        required: false
-        default: "all"
-        type: choice
-        options:
-          - all
-          - s922x_s905x3_s905x2_s912_s905d_s905
-          - rock5b_h28k_r66s_vplus
-          - 100ask-dshanpi-a1
-          - ak88
-          - beikeyun
-          - cm3
-          - e20c
-          - e24c
-          - e25
-          - e52c
-          - e54c
-          - ht2
-          - h28k
-          - h66k
-          - h68k
-          - h69k
-          - h69k-max
-          - h88k
-          - h88k-v3
-          - jp-tvbox
-          - l1pro
-          - photonicat
-          - qemu
-          - r66s
-          - r68s
-          - rock5b
-          - rock5c
-          - rk3399
-          - s905
-          - s905d
-          - s905x2
-          - s905x3
-          - s912
-          - s922x
-          - s922x-n2
-          - vplus
-          - watermelon-pi
-          - yixun-rs6pro
-          - zcube1-max
-          - diy
-      customize_rk3399:
-        description: "Set custom RK3399 device list."
-        required: false
-        default: "tvi3315a:rk3399-tvi3315a.dtb/sw799:rk3399-bozz-sw799.dtb"
-        type: choice
-        options:
-          - tvi3315a:rk3399-tvi3315a.dtb/sw799:rk3399-bozz-sw799.dtb
-          - none
-      openwrt_ip:
-        description: "Set the default IP address."
-        required: false
-        default: "192.168.1.1"
-      kernel_repo:
-        description: "Set the kernel download repository."
-        required: false
-        default: "ophub/kernel"
-        type: choice
-        options:
-          - breakingbadboy/OpenWrt
-          - ophub/kernel
-      openwrt_kernel:
-        description: "Select the kernel version to use."
-        required: false
-        default: "6.12.y_6.18.y"
-        type: choice
-        options:
-          - 5.10.y
-          - 5.15.y
-          - 6.1.y
-          - 6.6.y
-          - 6.12.y
-          - 6.18.y
-          - 5.10.y_5.15.y
-          - 6.1.y_6.6.y
-          - 6.12.y_6.18.y
-          - 6.1.y_6.12.y
-          - 6.1.y_6.18.y
-      auto_kernel:
-        description: "Auto use the latest kernel."
-        required: false
-        default: true
-        type: boolean
-      # ===================== 新增手动输入 rootfs 链接 =====================
       openwrt_rootfs_url:
-        description: "Enter your OpenWrt rootfs download link"
+        description: 输入 rootfs 直链
         required: true
-        default: ""
-      # ====================================================================
-      script_diy_path:
-        description: "Set the path for custom DIY scripts."
-        required: false
-        default: ""
-      openwrt_storage:
-        description: "Select release storage type."
-        required: false
-        default: "save"
-        type: choice
-        options:
-          - save
-          - temp
-      builder_name:
-        description: "Set the builder signature."
-        required: false
-        default: "ophub"
-        type: choice
-        options:
-          - ophub
-          - angel
-          - yourname
 
 env:
   TZ: Etc/UTC
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     if: ${{ github.event.repository.owner.id == github.sender.id }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Initialize build environment
-        id: init
-        env:
-          DEBIAN_FRONTEND: noninteractive
+      - name: Initialize environment
         run: |
-          docker rmi -f $(docker images -q) 2>/dev/null || true
-          [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android 2>/dev/null
-          sudo swapoff -a
-          sudo rm -f /swapfile /mnt/swapfile
-          sudo -E apt-get -y update
-          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
-          sudo -E apt-get -y install $(curl -fsSL https://ophub.org/ubuntu2404-make-openwrt-depends)
-          sudo -E systemctl daemon-reload
-          sudo -E apt-get -y autoremove --purge
-          sudo -E apt-get clean
-          sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
-          sudo rm -rf ~/{.cargo,.dotnet,.rustup}
-          sudo -E timedatectl set-timezone "${TZ:-Etc/UTC}"
-          sudo -E ntpdate ntp.ubuntu.com 0.pool.ntp.org || true
-          sudo -E timedatectl set-ntp true
-          date -u
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          sudo apt-get update
+          sudo apt-get install -y $(curl -fsSL https://ophub.org/ubuntu2404-make-openwrt-depends)
 
-      - name: Create LVM virtual disk
+      - name: Create virtual disk
         run: |
-          mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
-          root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
-          sudo truncate -s "${mnt_size}"G /mnt/mnt.img
-          sudo truncate -s "${root_size}"G /root.img
-          sudo losetup /dev/loop6 /mnt/mnt.img
-          sudo losetup /dev/loop7 /root.img
-          sudo pvcreate /dev/loop6
-          sudo pvcreate /dev/loop7
-          sudo vgcreate github /dev/loop6 /dev/loop7
-          sudo lvcreate -n runner -l 100%FREE github
-          sudo mkfs.xfs -f -i sparse=0 -b size=4096 /dev/github/runner
           sudo mkdir -p /builder
-          sudo mount /dev/github/runner /builder
-          sudo chown -R runner:runner /builder
-          df -Th
-          echo "status=success" >> ${GITHUB_OUTPUT}
+          sudo mount -t tmpfs -o size=15G tmpfs /builder
+          cd /builder
+          mkdir download
 
-      # ===================== 手动下载你输入的 rootfs =====================
-      - name: Download custom OpenWrt rootfs
-        id: download
+      - name: Download your rootfs
         working-directory: /builder
-        if: ${{ steps.init.outputs.status == 'success' && !cancelled() }}
         run: |
-          mkdir -p download
-          ROOTFS_URL="${{ inputs.openwrt_rootfs_url }}"
-          FILE_NAME="openwrt-rootfs.tar.gz"
-          
-          echo "Downloading rootfs from: ${ROOTFS_URL}"
-          curl -fsSL "${ROOTFS_URL}" -o "download/${FILE_NAME}" || exit 1
-          
-          mkdir -p opt
-          sudo rm -rf /opt && sudo ln -sf /builder/opt /opt
-          ln -sf /builder/download ${{ github.workspace }}/download
+          curl -fsSL "${{ inputs.openwrt_rootfs_url }}" -o download/openwrt-rootfs.tar.gz
 
-          echo "build_tag=OpenWrt_armv8_${{ inputs.openwrt_storage }}_$(date +"%Y.%m")" >> ${GITHUB_ENV}
-          echo "status=success" >> ${GITHUB_OUTPUT}
-      # ====================================================================
-
-      - name: Package OpenWrt Firmware
+      - name: Package N1 (s905d) Firmware
         uses: unifreq/openwrt_packit@master
-        if: ${{ steps.download.outputs.status == 'success' && !cancelled() }}
         env:
-          OPENWRT_ARMSR: download/*.tar.gz
-          PACKAGE_SOC: ${{ inputs.openwrt_soc }}
-          KERNEL_REPO_URL: ${{ inputs.kernel_repo }}
-          KERNEL_VERSION_NAME: ${{ inputs.openwrt_kernel }}
-          KERNEL_AUTO_LATEST: ${{ inputs.auto_kernel }}
-          OPENWRT_IP: ${{ inputs.openwrt_ip }}
-          CUSTOMIZE_RK3399: ${{ inputs.customize_rk3399 }}
-          SCRIPT_DIY_PATH: ${{ inputs.script_diy_path }}
-          WHOAMI: ${{ inputs.builder_name }}
+          OPENWRT_ARMSR: /builder/download/*.tar.gz
+          PACKAGE_SOC: s905d
+          KERNEL_VERSION_NAME: 6.12.y
+          OPENWRT_IP: 192.168.2.15
+          KERNEL_AUTO_LATEST: true
+          KERNEL_REPO_URL: ophub/kernel
 
-      - name: Upload OpenWrt Firmware to Release
+      - name: Upload to Release
         uses: ncipollo/release-action@main
-        if: ${{ env.PACKAGED_STATUS == 'success' && !cancelled() }}
+        if: ${{ env.PACKAGED_STATUS == 'success' }}
         with:
-          tag: ${{ env.build_tag }}
+          tag: N1_OpenWrt
           artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
           allowUpdates: true
-          removeArtifacts: false
-          replacesArtifacts: true
-          makeLatest: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            ### OpenWrt Image information
-            - Default IP: 192.168.1.1
-            - Default username: root
-            - Default password: password
-            ### Install to EMMC
-            - Login to OpenWrt → System → Amlogic Service → Install OpenWrt
-            ### OpenWrt source code
-            - Custom rootfs from user input
-            - Kernel repo: ${{ inputs.kernel_repo }}
