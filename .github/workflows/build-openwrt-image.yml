@@ -11,7 +11,7 @@ on:
       openwrt_rootfs_url:
         description: 输入 rootfs 直链
         required: true
-        default: "https://downloads.openwrt.org/releases/24.10.6/targets/armsr/armv8/openwrt-24.10.6-armsr-armv8-rootfs.tar.gz"
+        default: "https://github.com/dongjany/iStoreOS-Actions/releases/download/openwrt_N1_04.04.1452/openwrt-24.10.6-armsr-armv8-rootfs.tar.gz"
 
 env:
   TZ: Etc/UTC
