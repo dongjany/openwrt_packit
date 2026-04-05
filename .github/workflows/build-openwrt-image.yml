@@ -19,7 +19,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-24.04
-    if: ${{ github.event.repository.owner.id == github.sender.id }}
 
     steps:
       - name: Checkout
