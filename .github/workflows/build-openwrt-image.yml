@@ -3,10 +3,11 @@
 # 固定：N1(s905d) + 内核6.12.y + IP 192.168.2.15
 #==========================================================================
 
-name: Package OpenWrt N1 Firmware
+name: build-openwrt-image
 
 on:
   workflow_dispatch:
+  repository_dispatch:
     inputs:
       openwrt_rootfs_url:
         description: 输入 rootfs 直链
