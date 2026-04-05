@@ -7,11 +7,11 @@ name: build-openwrt-image
 
 on:
   workflow_dispatch:
-  repository_dispatch:
     inputs:
       openwrt_rootfs_url:
         description: 输入 rootfs 直链
         required: true
+        default: "https://downloads.openwrt.org/releases/24.10.6/targets/armsr/armv8/openwrt-24.10.6-armsr-armv8-rootfs.tar.gz"
 
 env:
   TZ: Etc/UTC
